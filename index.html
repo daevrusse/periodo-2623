@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Performance Bidireccional — Continental</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --navy:#0B1E3D;--navy2:#162D56;--red:#C8102E;
+  --bg:#F0F4FA;--card:#fff;--border:#DDE3EF;
+  --text:#1A2433;--muted:#6B7A99;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;}
+#uploadScreen{
+  position:fixed;inset:0;background:var(--navy);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:100;
+}
+.up-logo{display:flex;align-items:center;gap:12px;}
+.up-logo-box{width:46px;height:46px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;}
+.up-logo-box svg{width:26px;height:26px;fill:white;}
+.up-logo-txt strong{display:block;font-size:17px;font-weight:500;color:#fff;font-family:'Outfit',sans-serif;}
+.up-logo-txt span{font-size:12px;color:rgba(255,255,255,.4);}
+#dropZone{
+  width:480px;max-width:92vw;border:1.5px dashed var(--red);border-radius:14px;
+  padding:44px 36px;text-align:center;cursor:pointer;
+  background:rgba(255,255,255,.04);transition:background .2s,border-color .2s;
+}
+#dropZone.over{background:rgba(255,255,255,.09);border-color:#fff;}
+#dropZone svg{width:46px;height:46px;stroke:rgba(255,255,255,.4);margin:0 auto 14px;display:block;}
+#dropZone p{color:#fff;font-size:14px;font-weight:500;margin-bottom:6px;}
+#dropZone small{color:rgba(255,255,255,.4);font-size:12px;}
+.up-btn{padding:10px 22px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;
+  font-family:'DM Sans',sans-serif;border:none;background:var(--red);color:#fff;}
+.up-btn:hover{opacity:.85;}
+#fileInput{display:none;}
+/* SHELL */
+#app{display:flex;height:100vh;overflow:hidden;}
+/* SIDEBAR */
+#sidebar{width:215px;min-width:215px;background:var(--navy);display:flex;flex-direction:column;height:100vh;overflow-y:auto;}
+.sb-head{padding:18px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.sb-icon{width:34px;height:34px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-icon svg{width:18px;height:18px;fill:white;}
+.sb-brand strong{display:block;font-size:12px;font-weight:500;color:#fff;font-family:'Outfit',sans-serif;line-height:1.2;}
+.sb-brand span{font-size:11px;color:rgba(255,255,255,.4);}
+.sb-nav{padding:12px 8px;flex:1;}
+.sb-lbl{font-size:11px;font-weight:500;color:rgba(255,255,255,.28);letter-spacing:.8px;text-transform:uppercase;padding:0 8px;margin:14px 0 4px;}
+.sb-lbl:first-child{margin-top:0;}
+.nav-btn{
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;cursor:pointer;
+  color:rgba(255,255,255,.55);font-size:12px;font-weight:400;transition:all .15s;margin-bottom:2px;
+  border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;
+}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85);}
+.nav-btn.active{background:var(--red);color:#fff;}
+.nav-btn svg{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;}
+.sb-foot{padding:12px 14px;border-top:1px solid rgba(255,255,255,.07);}
+.sb-stat{background:rgba(255,255,255,.06);border-radius:8px;padding:9px 12px;}
+.sb-stat-lbl{font-size:11px;color:rgba(255,255,255,.33);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
+.sb-stat-val{font-size:13px;font-weight:500;color:#fff;}
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);
+  padding:10px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.crumb{font-size:12px;color:var(--muted);}
+.crumb-view{font-size:13px;font-weight:500;color:var(--text);}
+.topbar-r{display:flex;align-items:center;gap:9px;}
+.rec-badge{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 11px;font-size:12px;color:var(--muted);}
+.rec-badge strong{color:var(--text);}
+.btn-top{
+  display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;font-size:12px;
+  font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;
+  color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.btn-top:hover{border-color:var(--navy);color:var(--navy);}
+.btn-top svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
+/* FILTERBAR */
+.filterbar{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:8px 22px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;
+}
+.f-lbl{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;}
+.f-sep{width:1px;height:20px;background:var(--border);}
+select.fsel,input.fdate{
+  padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border);
+  background:var(--card);color:var(--text);cursor:pointer;
+  font-family:'DM Sans',sans-serif;height:28px;outline:none;
+}
+input.fdate{cursor:text;width:128px;}
+select.fsel:focus,input.fdate:focus{border-color:var(--navy);}
+.btn-clr{padding:4px 10px;font-size:12px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;height:28px;}
+.btn-clr:hover{border-color:var(--red);color:var(--red);}
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:18px 22px 28px;}
+.view{display:none;}
+.view.active{display:block;}
+.view-hdr{display:flex;align-items:center;gap:9px;margin-bottom:16px;}
+.view-ttl{font-size:16px;font-weight:500;color:var(--text);font-family:'Outfit',sans-serif;}
+.vbadge{font-size:11px;font-weight:500;letter-spacing:.5px;padding:3px 9px;border-radius:20px;}
+.vb-navy{background:rgba(11,30,61,.1);color:#0B1E3D;}
+.vb-red{background:rgba(200,16,46,.1);color:#C8102E;}
+.vb-teal{background:rgba(16,185,129,.1);color:#065F46;}
+.vb-amber{background:rgba(245,158,11,.1);color:#92400E;}
+/* KPI CARDS */
+.krow{display:grid;gap:11px;margin-bottom:13px;}
+.krow.c5{grid-template-columns:repeat(5,1fr);}
+.krow.c4{grid-template-columns:repeat(4,1fr);}
+.krow.c3{grid-template-columns:repeat(3,1fr);}
+.krow.c2{grid-template-columns:repeat(2,1fr);}
+.kcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 14px 12px;position:relative;overflow:hidden;}
+.kacc{position:absolute;top:0;left:0;right:0;height:3px;}
+.klbl{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kval{font-size:26px;font-weight:500;color:var(--text);line-height:1;margin-bottom:4px;font-family:'Outfit',sans-serif;}
+.ksub{font-size:11px;color:var(--muted);}
+/* CHART CARDS */
+.cgrid{display:grid;gap:12px;margin-bottom:12px;}
+.cgrid.c2{grid-template-columns:1fr 1fr;}
+.cgrid.c3{grid-template-columns:1fr 1fr 1fr;}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:15px 15px 12px;}
+.cc-ttl{font-size:13px;font-weight:500;color:var(--text);}
+.cc-sub{font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:10px;}
+/* SCROLL CHART WRAPPER */
+.scroll-ch{overflow-y:auto;overflow-x:hidden;}
+.scroll-ch::-webkit-scrollbar{width:4px;}
+.scroll-ch::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px;}
+.ch-fix{position:relative;}
+/* FUNNEL */
+.flist{display:flex;flex-direction:column;gap:8px;padding-top:4px;}
+.frow{display:flex;align-items:center;gap:8px;}
+.flbl{font-size:11px;font-weight:500;color:var(--muted);width:105px;flex-shrink:0;}
+.ftrack{flex:1;height:26px;background:var(--bg);border-radius:5px;overflow:hidden;}
+.ffill{height:100%;border-radius:5px;display:flex;align-items:center;padding:0 9px;min-width:36px;}
+.ffill span{font-size:11px;font-weight:500;color:#fff;white-space:nowrap;}
+.fcount{font-size:13px;font-weight:500;color:var(--text);width:36px;text-align:right;flex-shrink:0;}
+/* LEGEND */
+.leg{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:7px;}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+.leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+/* GEO TABLE */
+.geo-table{width:100%;border-collapse:collapse;font-size:12px;}
+.geo-table th{text-align:left;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border);}
+.geo-table td{padding:7px 10px;border-bottom:1px solid #F0F4FA;color:var(--text);}
+.geo-table tr:last-child td{border-bottom:none;}
+.geo-table tr:hover td{background:#F8FAFD;}
+.geo-bar-cell{width:120px;}
+.geo-mini{height:10px;border-radius:3px;background:#C8102E;}
+/* BIDIR */
+.bidir-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="uploadScreen">
+  <div class="up-logo">
+    <div class="up-logo-box">
+      <svg viewBox="0 0 24 24"><path d="M12 3L2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="up-logo-txt">
+      <strong>Dashboard Performance Bidireccional</strong>
+      <span>Instituto &amp; Escuela Superior Continental</span>
+    </div>
+  </div>
+  <div id="dropZone">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <polyline points="9 15 12 12 15 15"/>
+    </svg>
+    <p>Arrastra tu Excel aquí o haz clic para seleccionar</p>
+    <small>Google Sheets → Archivo → Descargar → Excel (.xlsx)</small>
+  </div>
+  <button class="up-btn" id="btnSelect">Seleccionar archivo</button>
+  <input type="file" id="fileInput" accept=".xlsx,.xls">
+</div>
+
+<!-- DASHBOARD APP -->
+<div id="app" style="display:none;">
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sb-head">
+      <div class="sb-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 3L2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="sb-brand">
+        <strong>Continental</strong>
+        <span>Performance Bidir.</span>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-lbl">General</div>
+      <button class="nav-btn active" data-view="resumen">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Resumen general
+      </button>
+      <div class="sb-lbl">Captación</div>
+      <button class="nav-btn" data-view="captacion">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Oportunidades
+      </button>
+      <div class="sb-lbl">Comercial</div>
+      <button class="nav-btn" data-view="comercial">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Matriculados
+      </button>
+      <div class="sb-lbl">Análisis</div>
+      <button class="nav-btn" data-view="geografia">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+        Geografía
+      </button>
+      <button class="nav-btn" data-view="bidireccional">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Bidireccional
+      </button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-stat">
+        <div class="sb-stat-lbl">Base cargada</div>
+        <div class="sb-stat-val" id="sbRec">— registros</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <div id="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="crumb">Dashboard /</span>
+        <span class="crumb-view" id="topView">Resumen general</span>
+      </div>
+      <div class="topbar-r">
+        <div class="rec-badge"><strong id="recN">0</strong> registros filtrados</div>
+        <button class="btn-top" id="btnReUp">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Nuevo archivo
+        </button>
+      </div>
+    </div>
+
+    <!-- FILTERBAR -->
+    <div class="filterbar">
+      <span class="f-lbl">Filtros:</span>
+      <div class="f-sep"></div>
+      <span class="f-lbl" style="font-size:10px;">Fecha creación:</span>
+      <input type="date" class="fdate" id="f-fecha-ini" title="Desde">
+      <span style="font-size:12px;color:var(--muted);">—</span>
+      <input type="date" class="fdate" id="f-fecha-fin" title="Hasta">
+      <div class="f-sep"></div>
+      <select class="fsel" id="f-periodo"><option value="">Periodo</option></select>
+      <select class="fsel" id="f-modalidad"><option value="">Modalidad</option></select>
+      <select class="fsel" id="f-tipo"><option value="">Tipo opp.</option></select>
+      <select class="fsel" id="f-estado"><option value="">Estado funnel</option></select>
+      <select class="fsel" id="f-canal"><option value="">Canal</option></select>
+      <select class="fsel" id="f-status"><option value="">Status</option></select>
+      <button class="btn-clr" id="btnClr">✕ Limpiar</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- ====== RESUMEN ====== -->
+      <div id="view-resumen" class="view active">
+        <div class="view-hdr">
+          <span class="view-ttl">Resumen general</span>
+          <span class="vbadge vb-navy">Bidireccional</span>
+        </div>
+        <div class="krow c5">
+          <div class="kcard"><div class="kacc" style="background:#0B1E3D"></div>
+            <div class="klbl">Total oportunidades</div><div class="kval" id="k-tot">—</div><div class="ksub">Registros cargados</div></div>
+          <div class="kcard"><div class="kacc" style="background:#10B981"></div>
+            <div class="klbl">Activos</div><div class="kval" id="k-act">—</div><div class="ksub">En proceso</div></div>
+          <div class="kcard"><div class="kacc" style="background:#6B7A99"></div>
+            <div class="klbl">Inactivos</div><div class="kval" id="k-ina">—</div><div class="ksub">Fuera de proceso</div></div>
+          <div class="kcard"><div class="kacc" style="background:#C8102E"></div>
+            <div class="klbl">Matriculados</div><div class="kval" id="k-mat">—</div><div class="ksub">Conversión final</div></div>
+          <div class="kcard"><div class="kacc" style="background:#F59E0B"></div>
+            <div class="klbl">Tasa conversión</div><div class="kval" id="k-conv">—</div><div class="ksub">Opp → matrícula</div></div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Embudo de conversión</div>
+            <div class="cc-sub">Distribución por etapa del funnel</div>
+            <div class="flist" id="funnelViz"></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Canal de captación</div>
+            <div class="cc-sub">Distribución por tipo de canal</div>
+            <div class="leg" id="leg-r-canal"></div>
+            <div class="ch-fix" style="height:150px"><canvas id="ch-r-canal" role="img" aria-label="Canal captación">Canal</canvas></div>
+          </div>
+        </div>
+        <div class="cgrid" style="grid-template-columns:2fr 1fr 1fr">
+          <div class="cc">
+            <div class="cc-ttl">Top programas</div>
+            <div class="cc-sub">Número de oportunidades por programa</div>
+            <div class="scroll-ch" style="max-height:220px;">
+              <div class="ch-fix" id="wrap-r-prog"><canvas id="ch-r-prog" role="img" aria-label="Top programas">Programas</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Modalidad</div><div class="cc-sub">&nbsp;</div>
+            <div class="leg" id="leg-r-mod"></div>
+            <div class="ch-fix" style="height:140px"><canvas id="ch-r-mod" role="img" aria-label="Modalidad">Modalidad</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Género</div><div class="cc-sub">&nbsp;</div>
+            <div class="leg" id="leg-r-gen"></div>
+            <div class="ch-fix" style="height:140px"><canvas id="ch-r-gen" role="img" aria-label="Género">Género</canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CAPTACIÓN ====== -->
+      <div id="view-captacion" class="view">
+        <div class="view-hdr">
+          <span class="view-ttl">Captación</span>
+          <span class="vbadge vb-navy">Oportunidades</span>
+        </div>
+        <div class="krow c4">
+          <div class="kcard"><div class="kacc" style="background:#0B1E3D"></div>
+            <div class="klbl">Total oportunidades</div><div class="kval" id="kc-tot">—</div><div class="ksub">Todos los registros</div></div>
+          <div class="kcard"><div class="kacc" style="background:#10B981"></div>
+            <div class="klbl">Activos</div><div class="kval" id="kc-act">—</div><div class="ksub">Status activo</div></div>
+          <div class="kcard"><div class="kacc" style="background:#3B82F6"></div>
+            <div class="klbl">Engagement</div><div class="kval" id="kc-eng">—</div><div class="ksub">En etapa engagement</div></div>
+          <div class="kcard"><div class="kacc" style="background:#8B5CF6"></div>
+            <div class="klbl">Preinscrito</div><div class="kval" id="kc-pre">—</div><div class="ksub">En preinscripción</div></div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Estado del funnel</div>
+            <div class="cc-sub">Conteo por etapa</div>
+            <div class="ch-fix" style="height:180px"><canvas id="ch-c-funnel" role="img" aria-label="Estado funnel">Funnel</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Canal de origen</div>
+            <div class="cc-sub">Por tipo de canal</div>
+            <div class="leg" id="leg-c-canal"></div>
+            <div class="ch-fix" style="height:150px"><canvas id="ch-c-canal" role="img" aria-label="Canal">Canal</canvas></div>
+          </div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Top 10 programas</div>
+            <div class="cc-sub">Oportunidades por programa académico</div>
+            <div class="scroll-ch" style="max-height:280px;">
+              <div class="ch-fix" id="wrap-c-prog"><canvas id="ch-c-prog" role="img" aria-label="Top programas">Programas</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Origen detallado</div>
+            <div class="cc-sub">Top 10 fuentes de captación</div>
+            <div class="scroll-ch" style="max-height:280px;">
+              <div class="ch-fix" id="wrap-c-origen"><canvas id="ch-c-origen" role="img" aria-label="Origen">Origen</canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="cgrid c3">
+          <div class="cc">
+            <div class="cc-ttl">Modalidad</div><div class="cc-sub">&nbsp;</div>
+            <div class="leg" id="leg-c-mod"></div>
+            <div class="ch-fix" style="height:130px"><canvas id="ch-c-mod" role="img" aria-label="Modalidad">Modalidad</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Tipo de oportunidad</div><div class="cc-sub">&nbsp;</div>
+            <div class="leg" id="leg-c-tipo"></div>
+            <div class="ch-fix" style="height:130px"><canvas id="ch-c-tipo" role="img" aria-label="Tipo">Tipo</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Por periodo</div><div class="cc-sub">&nbsp;</div>
+            <div class="ch-fix" style="height:150px"><canvas id="ch-c-periodo" role="img" aria-label="Periodo">Periodo</canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== COMERCIAL ====== -->
+      <div id="view-comercial" class="view">
+        <div class="view-hdr">
+          <span class="view-ttl">Comercial</span>
+          <span class="vbadge vb-red">Matriculados</span>
+        </div>
+        <div class="krow c4">
+          <div class="kcard"><div class="kacc" style="background:#C8102E"></div>
+            <div class="klbl">Matriculados</div><div class="kval" id="kcom-mat">—</div><div class="ksub">Conversión final</div></div>
+          <div class="kcard"><div class="kacc" style="background:#10B981"></div>
+            <div class="klbl">Ingresantes</div><div class="kval" id="kcom-ing">—</div><div class="ksub">Pre-matrícula</div></div>
+          <div class="kcard"><div class="kacc" style="background:#F59E0B"></div>
+            <div class="klbl">Postulantes</div><div class="kval" id="kcom-post">—</div><div class="ksub">En postulación</div></div>
+          <div class="kcard"><div class="kacc" style="background:#8B5CF6"></div>
+            <div class="klbl">Preinscritos</div><div class="kval" id="kcom-pre">—</div><div class="ksub">En preinscripción</div></div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Base asignada</div>
+            <div class="cc-sub">Funnel comercial por asesor</div>
+            <div class="scroll-ch" style="max-height:250px;">
+              <div class="ch-fix" id="wrap-com-base"><canvas id="ch-com-base" role="img" aria-label="Base asignada">Base</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Canal — matriculados</div>
+            <div class="cc-sub">Distribución por canal</div>
+            <div class="leg" id="leg-com-canal"></div>
+            <div class="ch-fix" style="height:185px"><canvas id="ch-com-canal" role="img" aria-label="Canal matriculados">Canal</canvas></div>
+          </div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Usuario de preinscripción</div>
+            <div class="cc-sub">Gestión por asesor</div>
+            <div class="scroll-ch" style="max-height:230px;">
+              <div class="ch-fix" id="wrap-com-userpre"><canvas id="ch-com-userpre" role="img" aria-label="Usuario preinscripción">Usuario pre</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Razón para el estado</div>
+            <div class="cc-sub">Distribución por resultado</div>
+            <div class="leg" id="leg-com-razon"></div>
+            <div class="ch-fix" style="height:175px"><canvas id="ch-com-razon" role="img" aria-label="Razón estado">Razón</canvas></div>
+          </div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Rango de edades</div>
+            <div class="cc-sub">Distribución de prospectos</div>
+            <div class="ch-fix" style="height:175px"><canvas id="ch-com-edad" role="img" aria-label="Rango edades">Edades</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Usuario bidireccional</div>
+            <div class="cc-sub">Gestión por asesor bidireccional</div>
+            <div class="scroll-ch" style="max-height:175px;">
+              <div class="ch-fix" id="wrap-com-bidir"><canvas id="ch-com-bidir" role="img" aria-label="Usuario bidireccional">Bidir</canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== GEOGRAFÍA ====== -->
+      <div id="view-geografia" class="view">
+        <div class="view-hdr">
+          <span class="view-ttl">Geografía</span>
+          <span class="vbadge vb-teal">Distribución regional</span>
+        </div>
+        <div class="krow c3">
+          <div class="kcard"><div class="kacc" style="background:#0B1E3D"></div>
+            <div class="klbl">Departamentos activos</div><div class="kval" id="kg-deptos">—</div><div class="ksub">Con al menos 1 oportunidad</div></div>
+          <div class="kcard"><div class="kacc" style="background:#C8102E"></div>
+            <div class="klbl">Principal departamento</div><div class="kval" id="kg-top" style="font-size:16px;">—</div><div class="ksub" id="kg-top-n">— oportunidades</div></div>
+          <div class="kcard"><div class="kacc" style="background:#10B981"></div>
+            <div class="klbl">Edad promedio global</div><div class="kval" id="kg-edad">—</div><div class="ksub">Años promedio</div></div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Oportunidades por departamento</div>
+            <div class="cc-sub">Todos los departamentos registrados</div>
+            <div class="scroll-ch" style="max-height:320px;">
+              <div class="ch-fix" id="wrap-g-depto"><canvas id="ch-g-depto" role="img" aria-label="Por departamento">Departamento</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Edad promedio por departamento</div>
+            <div class="cc-sub">Media de edad de prospectos</div>
+            <div class="scroll-ch" style="max-height:320px;">
+              <div class="ch-fix" id="wrap-g-edad"><canvas id="ch-g-edad" role="img" aria-label="Edad por departamento">Edad depto</canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="cc" style="margin-bottom:12px;">
+          <div class="cc-ttl">Detalle por departamento</div>
+          <div class="cc-sub">Oportunidades, edad promedio y tasa de conversión</div>
+          <div style="overflow-x:auto;margin-top:8px;">
+            <table class="geo-table" id="geo-table">
+              <thead><tr>
+                <th>Departamento</th><th>Oportunidades</th><th>%</th>
+                <th>Activos</th><th>Matriculados</th>
+                <th>Edad prom.</th><th>Distribución</th>
+              </tr></thead>
+              <tbody id="geo-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== BIDIRECCIONAL ====== -->
+      <div id="view-bidireccional" class="view">
+        <div class="view-hdr">
+          <span class="view-ttl">Bidireccional</span>
+          <span class="vbadge vb-amber">Gestión de usuarios</span>
+        </div>
+        <div class="krow c4">
+          <div class="kcard"><div class="kacc" style="background:#0B1E3D"></div>
+            <div class="klbl">Con gestión bidir.</div><div class="kval" id="kb-total">—</div><div class="ksub">Oportunidades gestionadas</div></div>
+          <div class="kcard"><div class="kacc" style="background:#C8102E"></div>
+            <div class="klbl">Sin gestión bidir.</div><div class="kval" id="kb-sin">—</div><div class="ksub">Sin usuario asignado</div></div>
+          <div class="kcard"><div class="kacc" style="background:#F59E0B"></div>
+            <div class="klbl">Usuarios activos</div><div class="kval" id="kb-users">—</div><div class="ksub">Asesores bidireccionales</div></div>
+          <div class="kcard"><div class="kacc" style="background:#10B981"></div>
+            <div class="klbl">Promedio por usuario</div><div class="kval" id="kb-prom">—</div><div class="ksub">Opp por asesor bidir.</div></div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Oportunidades por usuario bidireccional</div>
+            <div class="cc-sub">Total de oportunidades creadas por asesor</div>
+            <div class="scroll-ch" style="max-height:260px;">
+              <div class="ch-fix" id="wrap-b-users"><canvas id="ch-b-users" role="img" aria-label="Usuarios bidireccionales">Bidir users</canvas></div>
+            </div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Cobertura bidireccional</div>
+            <div class="cc-sub">Con vs sin gestión bidireccional</div>
+            <div class="leg" id="leg-b-cob"></div>
+            <div class="ch-fix" style="height:200px"><canvas id="ch-b-cob" role="img" aria-label="Cobertura bidireccional">Cobertura</canvas></div>
+          </div>
+        </div>
+        <div class="cgrid c2">
+          <div class="cc">
+            <div class="cc-ttl">Estado funnel — con gestión bidir.</div>
+            <div class="cc-sub">Distribución de etapas en oportunidades gestionadas</div>
+            <div class="ch-fix" style="height:200px"><canvas id="ch-b-funnel" role="img" aria-label="Funnel bidireccional">Funnel bidir</canvas></div>
+          </div>
+          <div class="cc">
+            <div class="cc-ttl">Canal — con gestión bidir.</div>
+            <div class="cc-sub">Origen de oportunidades bidireccionales</div>
+            <div class="leg" id="leg-b-canal"></div>
+            <div class="ch-fix" style="height:175px"><canvas id="ch-b-canal" role="img" aria-label="Canal bidir">Canal bidir</canvas></div>
+          </div>
+        </div>
+        <!-- Tabla detalle bidir -->
+        <div class="cc">
+          <div class="cc-ttl">Detalle por usuario bidireccional</div>
+          <div class="cc-sub">Oportunidades, estados y actividad de cada asesor</div>
+          <div style="overflow-x:auto;margin-top:8px;">
+            <table class="geo-table" id="bidir-table">
+              <thead><tr>
+                <th>Usuario bidireccional</th><th>Total opp.</th><th>Activos</th>
+                <th>Engagement</th><th>Matriculados</th><th>Canal principal</th><th>Distribución</th>
+              </tr></thead>
+              <tbody id="bidir-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// =============================
+// REGISTER DATALABELS GLOBALLY (disable per chart where not needed)
+// =============================
+Chart.register(ChartDataLabels);
+
+// =============================
+// CONSTANTS
+// =============================
+const C={
+  PERIODO:'Periodo',TIPO:'Tipo oportunidad',MODALIDAD:'Modalidad',PROGRAMA:'Programa',
+  ESTADO:'Estado funnel',STATUS:'Status Oportunidad',
+  GENERO:'Género (Contacto padre) (Contacto)',EDAD:'Edad (Contacto cliente) (Contacto)',
+  CANAL:'Canal (Origen) (Origen)',ORIGEN:'Origen',BASE:'Base asignada',
+  USUARIO_PRE:'Usuario de Preinscripción',RAZON:'Razón para el estado',
+  USUARIO_BIDIR:'Usuario Bidireccional',FECHA:'Fecha de creación',
+  DEPTO:'Departamento (Contacto padre) (Contacto)',
+};
+const PALETTE=['#0B1E3D','#C8102E','#3B82F6','#10B981','#F59E0B','#8B5CF6','#F97316','#06B6D4','#EC4899','#6366F1'];
+const CANAL_CLR={'Digital':'#0EA5E9','BTL':'#8B5CF6','ATL':'#F97316','Base de datos':'#10B981','HS':'#EC4899','B2B':'#6366F1'};
+const MOD_CLR={'DISTANCIA':'#3B82F6','PRESENCIAL':'#10B981','SEMIPRESENCIAL':'#F59E0B'};
+const GEN_CLR={'Masculino':'#3B82F6','Femenino':'#EC4899'};
+const RAZON_CLR={'En proceso':'#3B82F6','Perdida':'#C8102E','Lograda':'#10B981','Cierre periodo':'#F59E0B'};
+const FUNNEL_STAGES=['ENGAGEMENT','PREINSCRITO','POSTULANTE','INGRESANTE','MATRICULADO'];
+const FUNNEL_CLR={ENGAGEMENT:'#3B82F6',PREINSCRITO:'#8B5CF6',POSTULANTE:'#F59E0B',INGRESANTE:'#10B981',MATRICULADO:'#C8102E'};
+const FUNNEL_LBL={ENGAGEMENT:'Engagement',PREINSCRITO:'Preinscrito',POSTULANTE:'Postulante',INGRESANTE:'Ingresante',MATRICULADO:'Matriculado'};
+
+// =============================
+// STATE
+// =============================
+let allData=[],filtered=[],charts={};
+
+// =============================
+// HELPERS
+// =============================
+function countBy(data,col){const r={};data.forEach(row=>{const v=(row[col]||'').toString().trim();if(v)r[v]=(r[v]||0)+1;});return r;}
+function topN(obj,n=10){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);}
+function trim(s,n=26){s=(s||'').toString();return s.length>n?s.slice(0,n-1)+'…':s;}
+function setEl(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;}
+
+// =============================
+// CHART HELPERS
+// =============================
+const BASE_TT={
+  plugins:{
+    tooltip:{backgroundColor:'#0B1E3D',titleFont:{family:"'DM Sans'",size:12},bodyFont:{family:"'DM Sans'",size:11},padding:10,cornerRadius:7},
+    legend:{display:false},
+    datalabels:{display:false}   // off by default
+  }
+};
+
+function mk(id,cfg){
+  const c=document.getElementById(id);
+  if(!c)return;
+  if(charts[id]){charts[id].destroy();}
+  charts[id]=new Chart(c,cfg);
+}
+
+// Horizontal bar with scrollable container + data labels
+function mkHBar(id,labels,data,colors,wrapId){
+  const barH=34;
+  const h=Math.max(labels.length*barH+50,80);
+  if(wrapId){const w=document.getElementById(wrapId);if(w)w.style.height=h+'px';}
+  mk(id,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      layout:{padding:{right:55}},
+      plugins:{
+        tooltip:{backgroundColor:'#0B1E3D',titleFont:{family:"'DM Sans'",size:12},bodyFont:{family:"'DM Sans'",size:11},padding:10,cornerRadius:7},
+        legend:{display:false},
+        datalabels:{
+          display:true,anchor:'end',align:'end',
+          formatter:v=>v.toLocaleString(),
+          font:{family:"'DM Sans'",size:11,weight:'500'},
+          color:'#1A2433'
+        }
+      },
+      scales:{
+        x:{grid:{color:'#EEF2F8'},ticks:{font:{family:"'DM Sans'",size:11},color:'#6B7A99'}},
+        y:{grid:{display:false},ticks:{font:{family:"'DM Sans'",size:11},color:'#1A2433'}}
+      }
+    }
+  });
+}
+
+// Vertical bar with data labels
+function mkBar(id,labels,data,colors){
+  mk(id,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:5,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:22}},
+      plugins:{
+        tooltip:{backgroundColor:'#0B1E3D',titleFont:{family:"'DM Sans'",size:12},bodyFont:{family:"'DM Sans'",size:11},padding:10,cornerRadius:7},
+        legend:{display:false},
+        datalabels:{
+          display:true,anchor:'end',align:'top',
+          formatter:v=>v>0?v.toLocaleString():'',
+          font:{family:"'DM Sans'",size:11,weight:'500'},
+          color:'#1A2433'
+        }
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"'DM Sans'",size:11},color:'#6B7A99',autoSkip:false,maxRotation:30}},
+        y:{grid:{color:'#EEF2F8'},ticks:{font:{family:"'DM Sans'",size:11},color:'#6B7A99'}}
+      }
+    }
+  });
+}
+
+// Donut
+function mkDonut(id,labels,data,colors,legId){
+  mk(id,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff',hoverOffset:5}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'68%',
+      plugins:{
+        tooltip:{backgroundColor:'#0B1E3D',titleFont:{family:"'DM Sans'",size:12},bodyFont:{family:"'DM Sans'",size:11},padding:10,cornerRadius:7},
+        legend:{display:false},
+        datalabels:{display:false}
+      }
+    }
+  });
+  buildLeg(legId,labels,data,colors);
+}
+
+function buildLeg(id,labels,data,colors){
+  const el=document.getElementById(id);if(!el)return;
+  const total=data.reduce((a,b)=>a+b,0);
+  el.innerHTML=labels.map((l,i)=>`
+    <span class="leg-item">
+      <span class="leg-sq" style="background:${colors[i]}"></span>
+      ${trim(l,18)} <strong style="color:var(--text)">${total>0?Math.round(data[i]/total*100):0}%</strong>
+    </span>`).join('');
+}
+
+// =============================
+// FUNNEL VISUAL
+// =============================
+function renderFunnel(){
+  const cont=document.getElementById('funnelViz');if(!cont)return;
+  const total=filtered.length||1;
+  cont.innerHTML=FUNNEL_STAGES.map(s=>{
+    const n=filtered.filter(r=>r[C.ESTADO]===s).length;
+    const pct=Math.round(n/total*100);
+    return`<div class="frow">
+      <div class="flbl">${FUNNEL_LBL[s]}</div>
+      <div class="ftrack">
+        <div class="ffill" style="width:${pct}%;background:${FUNNEL_CLR[s]}">
+          <span>${pct>6?n.toLocaleString():''}</span>
+        </div>
+      </div>
+      <div class="fcount">${n.toLocaleString()}</div>
+    </div>`;
+  }).join('');
+}
+
+// =============================
+// KPIs
+// =============================
+function updateKPIs(){
+  const tot=filtered.length;
+  const act=filtered.filter(r=>r[C.STATUS]==='Activo').length;
+  const ina=filtered.filter(r=>r[C.STATUS]==='Inactivo').length;
+  const mat=filtered.filter(r=>r[C.ESTADO]==='MATRICULADO').length;
+  const ing=filtered.filter(r=>r[C.ESTADO]==='INGRESANTE').length;
+  const post=filtered.filter(r=>r[C.ESTADO]==='POSTULANTE').length;
+  const pre=filtered.filter(r=>r[C.ESTADO]==='PREINSCRITO').length;
+  const eng=filtered.filter(r=>r[C.ESTADO]==='ENGAGEMENT').length;
+  const conv=tot>0?(mat/tot*100).toFixed(1)+'%':'0%';
+  // Bidir
+  const bidirData=filtered.filter(r=>r[C.USUARIO_BIDIR]&&r[C.USUARIO_BIDIR].toString().trim()!='');
+  const bidirUsers=[...new Set(bidirData.map(r=>r[C.USUARIO_BIDIR].toString().trim()))];
+  const bidirSin=tot-bidirData.length;
+  const bidirProm=bidirUsers.length>0?Math.round(bidirData.length/bidirUsers.length):0;
+  // Geo
+  const deptoData=filtered.filter(r=>r[C.DEPTO]&&r[C.DEPTO].toString().trim()!='');
+  const deptoCounts=countBy(deptoData,C.DEPTO);
+  const topDepto=Object.entries(deptoCounts).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  const edades=filtered.map(r=>r[C.EDAD]).filter(e=>e&&+e>0&&+e<100);
+  const edadProm=edades.length?avg(edades.map(Number)):0;
+
+  setEl('k-tot',tot.toLocaleString());setEl('k-act',act.toLocaleString());setEl('k-ina',ina.toLocaleString());
+  setEl('k-mat',mat.toLocaleString());setEl('k-conv',conv);
+  setEl('kc-tot',tot.toLocaleString());setEl('kc-act',act.toLocaleString());
+  setEl('kc-eng',eng.toLocaleString());setEl('kc-pre',pre.toLocaleString());
+  setEl('kcom-mat',mat.toLocaleString());setEl('kcom-ing',ing.toLocaleString());
+  setEl('kcom-post',post.toLocaleString());setEl('kcom-pre',pre.toLocaleString());
+  setEl('kg-deptos',[...new Set(deptoData.map(r=>r[C.DEPTO]))].length.toLocaleString());
+  setEl('kg-top',trim(topDepto[0],14));setEl('kg-top-n',topDepto[1]+' oportunidades');
+  setEl('kg-edad',edadProm>0?edadProm.toFixed(1)+' años':'—');
+  setEl('kb-total',bidirData.length.toLocaleString());setEl('kb-sin',bidirSin.toLocaleString());
+  setEl('kb-users',bidirUsers.length.toLocaleString());setEl('kb-prom',bidirProm.toLocaleString());
+  setEl('recN',tot.toLocaleString());setEl('sbRec',allData.length.toLocaleString()+' registros');
+}
+
+// =============================
+// RENDER RESUMEN
+// =============================
+function renderResumen(){
+  renderFunnel();
+  const cd=countBy(filtered,C.CANAL);const ce=topN(cd,6);
+  mkDonut('ch-r-canal',ce.map(e=>e[0]),ce.map(e=>e[1]),ce.map((e,i)=>CANAL_CLR[e[0]]||PALETTE[i]),'leg-r-canal');
+  const pd=countBy(filtered,C.PROGRAMA);const pe=topN(pd,8);
+  mkHBar('ch-r-prog',pe.map(e=>trim(e[0],30)),pe.map(e=>e[1]),Array(pe.length).fill('#162D56'),'wrap-r-prog');
+  const md=countBy(filtered,C.MODALIDAD);const me=Object.entries(md);
+  mkDonut('ch-r-mod',me.map(e=>e[0]),me.map(e=>e[1]),me.map(e=>MOD_CLR[e[0]]||'#999'),'leg-r-mod');
+  const graw=countBy(filtered.filter(r=>r[C.GENERO]),C.GENERO);
+  const gd={};Object.entries(graw).forEach(([k,v])=>{const kk=k==='Femenimo'?'Femenino':k;gd[kk]=(gd[kk]||0)+v;});
+  const ge=Object.entries(gd);
+  mkDonut('ch-r-gen',ge.map(e=>e[0]),ge.map(e=>e[1]),ge.map(e=>GEN_CLR[e[0]]||'#999'),'leg-r-gen');
+}
+
+// =============================
+// RENDER CAPTACIÓN
+// =============================
+function renderCaptacion(){
+  const ec=FUNNEL_STAGES.map(s=>filtered.filter(r=>r[C.ESTADO]===s).length);
+  mkBar('ch-c-funnel',FUNNEL_STAGES.map(s=>FUNNEL_LBL[s]),ec,FUNNEL_STAGES.map(s=>FUNNEL_CLR[s]));
+  const cd=countBy(filtered,C.CANAL);const ce=topN(cd,6);
+  mkDonut('ch-c-canal',ce.map(e=>e[0]),ce.map(e=>e[1]),ce.map((e,i)=>CANAL_CLR[e[0]]||PALETTE[i]),'leg-c-canal');
+  const pd=countBy(filtered,C.PROGRAMA);const pe=topN(pd,10);
+  mkHBar('ch-c-prog',pe.map(e=>trim(e[0],30)),pe.map(e=>e[1]),Array(pe.length).fill('#162D56'),'wrap-c-prog');
+  const od=countBy(filtered,C.ORIGEN);const oe=topN(od,10);
+  mkHBar('ch-c-origen',oe.map(e=>trim(e[0],28)),oe.map(e=>e[1]),Array(oe.length).fill('#C8102E'),'wrap-c-origen');
+  const md=countBy(filtered,C.MODALIDAD);const me=Object.entries(md);
+  mkDonut('ch-c-mod',me.map(e=>e[0]),me.map(e=>e[1]),me.map(e=>MOD_CLR[e[0]]||'#999'),'leg-c-mod');
+  const td=countBy(filtered,C.TIPO);const te=Object.entries(td);
+  mkDonut('ch-c-tipo',te.map(e=>e[0]),te.map(e=>e[1]),['#0B1E3D','#C8102E'],'leg-c-tipo');
+  const prd=countBy(filtered,C.PERIODO);const pre=Object.entries(prd);
+  mkBar('ch-c-periodo',pre.map(e=>e[0]),pre.map(e=>e[1]),['#0B1E3D','#C8102E','#3B82F6']);
+}
+
+// =============================
+// RENDER COMERCIAL
+// =============================
+function renderComercial(){
+  const funnel4=filtered.filter(r=>['MATRICULADO','INGRESANTE','POSTULANTE','PREINSCRITO'].includes(r[C.ESTADO]));
+  const base4=funnel4.length?funnel4:filtered;
+  const bd=countBy(base4,C.BASE);const be=topN(bd,10);
+  mkHBar('ch-com-base',be.map(e=>trim(e[0],22)),be.map(e=>e[1]),Array(be.length).fill('#0B1E3D'),'wrap-com-base');
+  const matD=filtered.filter(r=>r[C.ESTADO]==='MATRICULADO');
+  const cmD=matD.length?matD:filtered;
+  const cmd=countBy(cmD,C.CANAL);const cme=Object.entries(cmd);
+  mkDonut('ch-com-canal',cme.map(e=>e[0]),cme.map(e=>e[1]),cme.map((e,i)=>CANAL_CLR[e[0]]||PALETTE[i]),'leg-com-canal');
+  const upd=countBy(filtered.filter(r=>r[C.USUARIO_PRE]&&r[C.USUARIO_PRE].toString().trim()!=''),C.USUARIO_PRE);
+  const upe=topN(upd,10);
+  mkHBar('ch-com-userpre',upe.map(e=>trim(e[0],22)),upe.map(e=>e[1]),Array(upe.length).fill('#8B5CF6'),'wrap-com-userpre');
+  const rd=countBy(filtered,C.RAZON);const re=Object.entries(rd);
+  mkDonut('ch-com-razon',re.map(e=>e[0]),re.map(e=>e[1]),re.map(e=>RAZON_CLR[e[0]]||'#999'),'leg-com-razon');
+  const edades=filtered.map(r=>+r[C.EDAD]).filter(e=>e>0&&e<100);
+  const bins={'≤20':0,'21-25':0,'26-30':0,'31-35':0,'36-40':0,'41-45':0,'46-50':0,'51+':0};
+  edades.forEach(e=>{
+    if(e<=20)bins['≤20']++;else if(e<=25)bins['21-25']++;else if(e<=30)bins['26-30']++;
+    else if(e<=35)bins['31-35']++;else if(e<=40)bins['36-40']++;else if(e<=45)bins['41-45']++;
+    else if(e<=50)bins['46-50']++;else bins['51+']++;
+  });
+  mkBar('ch-com-edad',Object.keys(bins),Object.values(bins),Array(8).fill('#0EA5E9'));
+  const ubd=countBy(filtered.filter(r=>r[C.USUARIO_BIDIR]&&r[C.USUARIO_BIDIR].toString().trim()!=''),C.USUARIO_BIDIR);
+  const ube=topN(ubd,8);
+  mkHBar('ch-com-bidir',ube.map(e=>trim(e[0],22)),ube.map(e=>e[1]),Array(ube.length).fill('#F97316'),'wrap-com-bidir');
+}
+
+// =============================
+// RENDER GEOGRAFÍA
+// =============================
+function renderGeografia(){
+  const depData=filtered.filter(r=>r[C.DEPTO]&&r[C.DEPTO].toString().trim()!='');
+  const deptoCnts=countBy(depData,C.DEPTO);
+  const deptoArr=Object.entries(deptoCnts).sort((a,b)=>b[1]-a[1]);
+  const total=filtered.length||1;
+
+  // Charts
+  mkHBar('ch-g-depto',deptoArr.map(e=>e[0]),deptoArr.map(e=>e[1]),
+    deptoArr.map((_,i)=>i===0?'#C8102E':'#0B1E3D'),'wrap-g-depto');
+
+  // Edad promedio por dpto
+  const edadMap={};
+  depData.forEach(r=>{
+    const d=r[C.DEPTO];const e=+r[C.EDAD];
+    if(d&&e>0&&e<100){if(!edadMap[d])edadMap[d]=[];edadMap[d].push(e);}
+  });
+  const edadAvg=Object.entries(edadMap).map(([d,arr])=>([d,+(avg(arr).toFixed(1))])).sort((a,b)=>b[1]-a[1]);
+  mkHBar('ch-g-edad',edadAvg.map(e=>e[0]),edadAvg.map(e=>e[1]),
+    edadAvg.map((_,i)=>i===0?'#10B981':'#06B6D4'),'wrap-g-edad');
+
+  // Table
+  const tbody=document.getElementById('geo-tbody');
+  if(!tbody)return;
+  const maxCount=deptoArr.length?deptoArr[0][1]:1;
+  tbody.innerHTML=deptoArr.map(([dep,cnt])=>{
+    const activos=filtered.filter(r=>r[C.DEPTO]===dep&&r[C.STATUS]==='Activo').length;
+    const mats=filtered.filter(r=>r[C.DEPTO]===dep&&r[C.ESTADO]==='MATRICULADO').length;
+    const eds=depData.filter(r=>r[C.DEPTO]===dep).map(r=>+r[C.EDAD]).filter(e=>e>0&&e<100);
+    const edProm=eds.length?avg(eds).toFixed(1):'—';
+    const pct=Math.round(cnt/total*100);
+    const barW=Math.round(cnt/maxCount*100);
+    return`<tr>
+      <td style="font-weight:500">${dep}</td>
+      <td style="text-align:center"><strong>${cnt}</strong></td>
+      <td style="text-align:center">${pct}%</td>
+      <td style="text-align:center">${activos}</td>
+      <td style="text-align:center">${mats}</td>
+      <td style="text-align:center">${edProm}</td>
+      <td class="geo-bar-cell"><div class="geo-mini" style="width:${barW}%"></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================
+// RENDER BIDIRECCIONAL
+// =============================
+function renderBidireccional(){
+  const bidirData=filtered.filter(r=>r[C.USUARIO_BIDIR]&&r[C.USUARIO_BIDIR].toString().trim()!='');
+  const sinBidir=filtered.length-bidirData.length;
+  const ubd=countBy(bidirData,C.USUARIO_BIDIR);
+  const ube=topN(ubd,15);
+  mkHBar('ch-b-users',ube.map(e=>trim(e[0],26)),ube.map(e=>e[1]),
+    ube.map((_,i)=>i===0?'#C8102E':i===1?'#0B1E3D':'#6366F1'),'wrap-b-users');
+
+  // Cobertura donut
+  mkDonut('ch-b-cob',['Con gestión bidir.','Sin gestión bidir.'],[bidirData.length,sinBidir],['#0B1E3D','#EEF2F8'],'leg-b-cob');
+
+  // Funnel de oportunidades con bidir
+  const ec=FUNNEL_STAGES.map(s=>bidirData.filter(r=>r[C.ESTADO]===s).length);
+  mkBar('ch-b-funnel',FUNNEL_STAGES.map(s=>FUNNEL_LBL[s]),ec,FUNNEL_STAGES.map(s=>FUNNEL_CLR[s]));
+
+  // Canal bidir
+  const cbd=countBy(bidirData,C.CANAL);const cbe=Object.entries(cbd);
+  mkDonut('ch-b-canal',cbe.map(e=>e[0]),cbe.map(e=>e[1]),cbe.map((e,i)=>CANAL_CLR[e[0]]||PALETTE[i]),'leg-b-canal');
+
+  // Tabla detalle
+  const tbody=document.getElementById('bidir-tbody');
+  if(!tbody)return;
+  const maxCount=ube.length?ube[0][1]:1;
+  tbody.innerHTML=ube.map(([usr,cnt])=>{
+    const rows=bidirData.filter(r=>r[C.USUARIO_BIDIR].toString().trim()===usr);
+    const activos=rows.filter(r=>r[C.STATUS]==='Activo').length;
+    const eng=rows.filter(r=>r[C.ESTADO]==='ENGAGEMENT').length;
+    const mats=rows.filter(r=>r[C.ESTADO]==='MATRICULADO').length;
+    const canalMain=Object.entries(countBy(rows,C.CANAL)).sort((a,b)=>b[1]-a[1])[0];
+    const barW=Math.round(cnt/maxCount*100);
+    return`<tr>
+      <td style="font-weight:500">${trim(usr,30)}</td>
+      <td style="text-align:center"><strong>${cnt}</strong></td>
+      <td style="text-align:center">${activos}</td>
+      <td style="text-align:center">${eng}</td>
+      <td style="text-align:center">${mats}</td>
+      <td style="text-align:center">${canalMain?canalMain[0]:'—'}</td>
+      <td class="geo-bar-cell"><div class="geo-mini" style="width:${barW}%;background:#0B1E3D"></div></td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================
+// RENDER ALL
+// =============================
+function renderAll(){
+  updateKPIs();renderResumen();renderCaptacion();renderComercial();renderGeografia();renderBidireccional();
+}
+
+// =============================
+// FILTERS
+// =============================
+function parseDate(d){return d?new Date(d+'T00:00:00'):null;}
+function toDate(v){
+  if(!v)return null;
+  if(v instanceof Date)return v;
+  if(typeof v==='number'){return new Date(Math.round((v-25569)*86400*1000));}
+  return new Date(v);
+}
+
+function applyFilters(){
+  const p=document.getElementById('f-periodo').value;
+  const m=document.getElementById('f-modalidad').value;
+  const t=document.getElementById('f-tipo').value;
+  const e=document.getElementById('f-estado').value;
+  const ca=document.getElementById('f-canal').value;
+  const s=document.getElementById('f-status').value;
+  const di=parseDate(document.getElementById('f-fecha-ini').value);
+  const df=parseDate(document.getElementById('f-fecha-fin').value);
+  filtered=allData.filter(row=>{
+    if(p&&row[C.PERIODO]!=p)return false;
+    if(m&&row[C.MODALIDAD]!=m)return false;
+    if(t&&row[C.TIPO]!=t)return false;
+    if(e&&row[C.ESTADO]!=e)return false;
+    if(ca&&row[C.CANAL]!=ca)return false;
+    if(s&&row[C.STATUS]!=s)return false;
+    if(di||df){
+      const rd=toDate(row[C.FECHA]);
+      if(!rd)return false;
+      if(di&&rd<di)return false;
+      if(df){const dfEnd=new Date(df);dfEnd.setHours(23,59,59);if(rd>dfEnd)return false;}
+    }
+    return true;
+  });
+  renderAll();
+}
+
+function populateFilters(){
+  const map={'f-periodo':C.PERIODO,'f-modalidad':C.MODALIDAD,'f-tipo':C.TIPO,
+             'f-estado':C.ESTADO,'f-canal':C.CANAL,'f-status':C.STATUS};
+  Object.entries(map).forEach(([id,col])=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const first=sel.options[0];sel.innerHTML='';sel.appendChild(first);
+    [...new Set(allData.map(r=>(r[col]||'').toString()).filter(Boolean))].sort()
+      .forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});
+  });
+  // Set date range defaults
+  const dates=allData.map(r=>toDate(r[C.FECHA])).filter(Boolean);
+  if(dates.length){
+    const minD=new Date(Math.min(...dates));const maxD=new Date(Math.max(...dates));
+    const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    document.getElementById('f-fecha-ini').placeholder=fmt(minD);
+    document.getElementById('f-fecha-fin').placeholder=fmt(maxD);
+  }
+}
+
+// =============================
+// EXCEL PROCESSING
+// =============================
+function processExcel(wb){
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  allData=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+  // Re-read with raw for dates
+  const wsRaw=wb.Sheets[wb.SheetNames[0]];
+  const rawData=XLSX.utils.sheet_to_json(wsRaw,{defval:'',raw:true});
+  allData=allData.map((row,i)=>{
+    row[C.FECHA]=rawData[i]?rawData[i][C.FECHA]:row[C.FECHA];
+    if(row[C.GENERO]==='Femenimo')row[C.GENERO]='Femenino';
+    return row;
+  });
+  filtered=[...allData];
+  populateFilters();
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  renderAll();
+}
+function loadFile(file){
+  const r=new FileReader();
+  r.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+    processExcel(wb);
+  };
+  r.readAsBinaryString(file);
+}
+
+// =============================
+// NAVIGATION
+// =============================
+const viewNames={resumen:'Resumen general',captacion:'Oportunidades — Captación',
+  comercial:'Matriculados — Comercial',geografia:'Geografía',bidireccional:'Bidireccional'};
+function switchView(v){
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+v));
+  setEl('topView',viewNames[v]||v);
+  const c=document.querySelector('.content');if(c)c.scrollTop=0;
+}
+
+// =============================
+// EVENTS
+// =============================
+document.addEventListener('DOMContentLoaded',()=>{
+  const dz=document.getElementById('dropZone');
+  const fi=document.getElementById('fileInput');
+  dz.addEventListener('click',()=>fi.click());
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+  fi.addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+  document.getElementById('btnSelect').addEventListener('click',()=>fi.click());
+  document.getElementById('btnReUp').addEventListener('click',()=>{
+    document.getElementById('app').style.display='none';
+    document.getElementById('uploadScreen').style.display='flex';
+    Object.values(charts).forEach(c=>c.destroy());charts={};allData=[];filtered=[];fi.value='';
+  });
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>switchView(btn.dataset.view)));
+  document.querySelectorAll('.fsel').forEach(s=>s.addEventListener('change',applyFilters));
+  document.getElementById('f-fecha-ini').addEventListener('change',applyFilters);
+  document.getElementById('f-fecha-fin').addEventListener('change',applyFilters);
+  document.getElementById('btnClr').addEventListener('click',()=>{
+    document.querySelectorAll('.fsel').forEach(s=>s.value='');
+    document.getElementById('f-fecha-ini').value='';
+    document.getElementById('f-fecha-fin').value='';
+    filtered=[...allData];renderAll();
+  });
+});
+</script>
+</body>
+</html>
